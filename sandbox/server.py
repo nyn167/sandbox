@@ -147,6 +147,8 @@ class Engine:
     def dash(self) -> dict:
         names = [a["name"] for a in self.db.agents()]
         return {"t": datetime.now(IST).strftime("%H:%M:%S"), "feed": getattr(self.feed, "status", "?"),
+                "mode": "MOCK" if self.mock else "LIVE", "spot": self.broker.mark("NIFTY"),
+                "limits": {"pot": self.cfg["account"]["daily_loss_limit"], **self.cfg["agents"]},
                 "account": self.account(),
                 "agents": sorted(({"name": n, **self.agent_totals(n), "blocked": self.broker.agent_blocked.get(n, "")}
                                   for n in names), key=lambda a: -a["net"]),
@@ -276,6 +278,46 @@ def make_app(engine: Engine) -> FastAPI:
     async def reset():
         engine.broker.reset_account()
         return engine.account()
+
+    @app.post("/api/admin/order", dependencies=[Depends(admin)])
+    async def manual_order(body: dict = Body(...)):
+        """Paper order from the website ticket, booked to the 'manual' agent."""
+        if not engine.db.agent_for_key("") and not any(a["name"] == "manual" for a in engine.db.agents()):
+            engine.db.create_agent("manual", "manual")
+        o = engine.broker.place("manual", body.get("symbol", ""), body.get("side", ""), int(body.get("qty") or 0),
+                                body.get("type", "MARKET"), body.get("product"), body.get("price"), body.get("trigger"),
+                                "website")
+        return JSONResponse(asdict(o), status_code=200 if o.status != "REJECTED" else 422)
+
+    @app.post("/api/admin/cancel/{oid}", dependencies=[Depends(admin)])
+    async def admin_cancel(oid: str):
+        o = engine.broker.cancel(None, oid, "cancelled by admin")
+        return asdict(o) if o else JSONResponse({"error": "no open order"}, status_code=404)
+
+    @app.post("/api/admin/close", dependencies=[Depends(admin)])
+    async def admin_close(body: dict = Body(...)):
+        """Close one position at market."""
+        p = engine.broker.positions.get((body.get("agent"), body.get("symbol"), body.get("product")))
+        if not p or not p.qty:
+            raise HTTPException(404, "no such position")
+        o = engine.broker.place(p.agent, p.symbol, "SELL" if p.qty > 0 else "BUY", abs(p.qty), "MARKET", p.product,
+                                tag="closed by admin")
+        return JSONResponse(asdict(o), status_code=200 if o.status != "REJECTED" else 422)
+
+    # ---- public read-only market data for the website tabs (tailnet only)
+    @app.get("/api/market/chain")
+    async def market_chain(expiry: str = ""):
+        return await chain(expiry, "")
+
+    @app.get("/api/market/stocks")
+    async def market_stocks():
+        out = []
+        for i in engine.reg.stocks():
+            q = engine.broker.quote(i.symbol)
+            pc = q.get("prev_close")
+            q["chg_pct"] = round((q["ltp"] - pc) / pc * 100, 2) if q.get("ltp") and pc else None
+            out.append(q)
+        return out
 
     # ---- dashboard (read-only, no key; served only inside the tailnet)
     @app.get("/api/dash")

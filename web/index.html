@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>NYN Sandbox</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #000; --s1: #000; --s2: #0d0d0d; --s3: #1a1a1a; --border: #262626; --hair: #161616;
+  --t1: #fff; --t2: #c7c7c7; --t3: #8c8c8c; --good: #00d26a; --bad: #ff453a; --r: 4px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--t1);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.up { color: var(--good); } .down { color: var(--bad); } .muted { color: var(--t3); }
+button { font: inherit; }
+.top { position: sticky; top: 0; z-index: 10; background: rgba(0,0,0,.9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border); padding-top: env(safe-area-inset-top); }
+.bar { display: flex; align-items: center; gap: 14px; padding: 12px 24px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .6px; white-space: nowrap; }
+.logo { width: 28px; height: 28px; border-radius: 3px; background: #fff; color: #000; display: grid; place-items: center; font-weight: 900; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700; padding: 5px 11px; border-radius: 3px;
+  border: 1px solid var(--border); color: var(--t2); white-space: nowrap; letter-spacing: .4px; }
+.pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--t3); }
+.pill.open { color: var(--good); border-color: var(--good); } .pill.open i { background: var(--good); }
+.pill.paper { color: #000; background: #fff; border-color: #fff; }
+.spacer { flex: 1; }
+.btn { background: none; border: 1px solid var(--border); color: var(--t2); border-radius: 3px; padding: 6px 12px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.btn:hover { border-color: #fff; color: #fff; }
+.btn.red { border-color: var(--bad); color: var(--bad); } .btn.red:hover { background: var(--bad); color: #000; }
+.btn.green { border-color: var(--good); color: var(--good); } .btn.green:hover { background: var(--good); color: #000; }
+.btn.white { background: #fff; color: #000; border-color: #fff; }
+.btn.sm { padding: 2px 8px; font-size: 12px; }
+nav.tabs { display: flex; gap: 2px; padding: 0 24px; overflow-x: auto; scrollbar-width: none; }
+nav.tabs::-webkit-scrollbar { display: none; }
+nav.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--t2); padding: 9px 14px; cursor: pointer; white-space: nowrap; font-weight: 600; }
+nav.tabs button.on { color: #fff; border-bottom-color: #fff; }
+main { padding: 16px 24px 40px; display: grid; gap: 14px; }
+.banner { display: none; border: 1px solid var(--bad); color: #fff; border-radius: var(--r); padding: 10px 14px; }
+.banner.show { display: block; }
+.adminbar { display: none; gap: 8px; flex-wrap: wrap; align-items: center; border: 1px dashed #444; border-radius: var(--r); padding: 10px 12px; }
+body.admin .adminbar { display: flex; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+.kpi { border: 1px solid var(--border); border-radius: var(--r); padding: 12px 14px; min-width: 0; }
+.kpi .l { color: var(--t3); font-size: 11.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; }
+.kpi .v { font-size: 26px; font-weight: 750; margin-top: 2px; white-space: nowrap; }
+.kpi .s { color: var(--t2); font-size: 12.5px; }
+.card { border: 1px solid var(--border); border-radius: var(--r); min-width: 0; overflow: hidden; }
+.card > h2 { font-size: 12.5px; margin: 0; padding: 12px 16px; font-weight: 750; letter-spacing: 1px; text-transform: uppercase;
+  border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.card > h2 .hint { margin-left: auto; font-weight: 400; color: var(--t3); text-transform: none; letter-spacing: 0; font-size: 12.5px; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.scroll { overflow: auto; max-height: 560px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { position: sticky; top: 0; background: #000; color: var(--t3); font-weight: 700; font-size: 11.5px; text-transform: uppercase;
+  letter-spacing: .5px; padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: right; white-space: nowrap; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--hair); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+td.c, th.c { text-align: center; }
+tr.atm td { border-top: 1px solid #fff; border-bottom: 1px solid #fff; background: #111; }
+td.k { font-weight: 750; background: var(--s2); text-align: center; }
+td.px { cursor: pointer; } td.px:hover { background: #fff; color: #000; }
+.empty { padding: 18px 16px; color: var(--t3); }
+canvas { display: block; width: 100%; height: 220px; }
+.ev div { padding: 6px 16px; border-bottom: 1px solid var(--hair); font-size: 13px; color: var(--t2); }
+.ev .t { color: var(--t3); margin-right: 8px; }
+.ev .RISK { color: var(--bad); } .ev .ADMIN { color: #fff; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+select, input { background: #000; color: #fff; border: 1px solid var(--border); border-radius: 3px; padding: 6px 9px; font: inherit; font-size: 13.5px; }
+.view { display: none; } .view.on { display: grid; gap: 14px; }
+/* modal */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: none; align-items: center; justify-content: center; z-index: 50; padding: 16px; }
+.modal.show { display: flex; }
+.box { background: #000; border: 1px solid #fff; border-radius: var(--r); padding: 18px; width: 100%; max-width: 420px; display: grid; gap: 12px; }
+.box h3 { margin: 0; font-size: 16px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.row label { color: var(--t3); font-size: 12.5px; width: 70px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
+.seg button { background: none; border: 0; color: var(--t2); padding: 6px 12px; cursor: pointer; }
+.seg button.on { background: #fff; color: #000; }
+.seg button.on.buy { background: var(--good); } .seg button.on.sell { background: var(--bad); }
+.msg { font-size: 13px; min-height: 18px; }
+.key { font-family: ui-monospace, Menlo, Consolas, monospace; background: var(--s3); padding: 8px; border-radius: 3px; word-break: break-all; font-size: 12.5px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+@media (max-width: 600px) {
+  .bar, nav.tabs { padding-left: 16px; padding-right: 16px; } main { padding: 12px 16px 32px; }
+  .kpi .v { font-size: 22px; } .hide-sm { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="bar">
+    <div class="brand"><span class="logo">S</span>NYN SANDBOX</div>
+    <span class="pill paper">PAPER MONEY</span>
+    <span class="pill" id="mkt"><i></i><span id="mkt-t">connecting…</span></span>
+    <span class="spacer"></span>
+    <span class="muted num hide-sm" id="clock"></span>
+    <button class="btn" id="lock" type="button">🔒 Admin</button>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-v="overview" class="on">Overview</button><button data-v="options">Nifty options</button>
+    <button data-v="stocks">NSE stocks</button><button data-v="bots">Bots</button><button data-v="activity">Activity</button>
+  </nav>
+</div>
+
+<main>
+  <div class="banner" id="halt"></div>
+  <div class="adminbar">
+    <b style="margin-right:6px">Admin</b>
+    <button class="btn red" data-a="halt">Halt trading</button>
+    <button class="btn green" data-a="resume">Resume</button>
+    <button class="btn red" data-a="squareoff">Square off everything</button>
+    <button class="btn" data-a="reset">Reset pot to ₹50,000</button>
+    <span class="spacer"></span><button class="btn sm" id="logout">Lock</button>
+  </div>
+  <section class="kpis num" id="kpis"></section>
+
+  <section class="view on" id="v-overview">
+    <div class="grid2">
+      <div class="card"><h2>Equity <span class="hint" id="eq-hint">last 7 days</span></h2><canvas id="eq"></canvas></div>
+      <div class="card"><h2>Events</h2><div class="ev scroll" id="events" style="max-height:220px"></div></div>
+    </div>
+    <div class="card"><h2>Open positions <span class="hint" id="pos-n"></span></h2><div class="scroll" id="positions"></div></div>
+    <div class="card"><h2>Open orders <span class="hint" id="ord-n"></span></h2><div class="scroll" id="orders"></div></div>
+  </section>
+
+  <section class="view" id="v-options">
+    <div class="card">
+      <h2>Nifty options <span class="hint" id="ch-hint"></span></h2>
+      <div class="toolbar"><select id="expiry"></select><span class="muted">Spot <b class="num" id="spot" style="color:#fff">—</b></span>
+        <span class="muted" style="margin-left:auto">Click a price to open a paper order ticket (admin)</span></div>
+      <div class="scroll" id="chain" style="max-height:680px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-stocks">
+    <div class="card">
+      <h2>NSE stocks <span class="hint" id="st-hint"></span></h2>
+      <div class="toolbar"><input id="q" placeholder="Search symbol…" autocomplete="off">
+        <span class="muted" style="margin-left:auto">Click a row to open a paper order ticket (admin)</span></div>
+      <div class="scroll" id="stocks" style="max-height:680px"></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-bots">
+    <div class="card"><h2>Leaderboard <span class="hint">all agents share one ₹50,000 pot · P&amp;L after charges</span></h2><div class="scroll" id="board"></div></div>
+    <div class="card adminonly"><h2>Connect a bot / AI agent</h2>
+      <div style="padding:14px 16px;display:grid;gap:10px">
+        <div class="row"><input id="newname" placeholder="bot name, e.g. orb-bot" style="flex:1;min-width:180px"><button class="btn white" id="mk">Create API key</button></div>
+        <div class="msg" id="mkmsg"></div>
+        <div class="muted" style="font-size:13px">Agents trade over HTTP with header <code>X-API-Key</code>. Endpoints and a live tester: <a href="/docs" style="color:#fff">/docs</a>.
+          Paper money only — nothing here can reach a real broker.</div>
+      </div></div>
+  </section>
+
+  <section class="view" id="v-activity">
+    <div class="card"><h2>Trades <span class="hint">latest 50</span></h2><div class="scroll" id="trades"></div></div>
+  </section>
+</main>
+
+<div class="modal" id="ticket"><div class="box">
+  <h3 id="tk-sym">—</h3>
+  <div class="muted num" id="tk-q"></div>
+  <div class="row"><label>Side</label><span class="seg" id="tk-side"><button class="buy on" data-v="BUY">Buy</button><button class="sell" data-v="SELL">Sell</button></span></div>
+  <div class="row"><label>Quantity</label><input id="tk-qty" type="number" min="1" style="width:120px"><span class="muted" id="tk-lot"></span></div>
+  <div class="row"><label>Type</label><span class="seg" id="tk-type"><button class="on" data-v="MARKET">Market</button><button data-v="LIMIT">Limit</button><button data-v="SLM">Stop</button></span></div>
+  <div class="row" id="tk-pr"><label id="tk-prl">Price</label><input id="tk-price" type="number" step="0.05" style="width:120px"></div>
+  <div class="row"><label>Product</label><span class="seg" id="tk-prod"></span></div>
+  <div class="msg num" id="tk-est"></div>
+  <div class="msg" id="tk-msg"></div>
+  <div class="row"><button class="btn white" id="tk-go">Place paper order</button><button class="btn" id="tk-x">Close</button></div>
+</div></div>
+
+<div class="modal" id="keybox"><div class="box">
+  <h3>Admin key</h3>
+  <div class="muted" style="font-size:13px">Find it on the laptop in <code>C:\sandbox\.env</code> (SANDBOX_ADMIN_KEY). It stays in this browser only.</div>
+  <input id="admkey" type="password" autocomplete="off" placeholder="adm_…">
+  <div class="msg" id="admmsg"></div>
+  <div class="row"><button class="btn white" id="admgo">Unlock</button><button class="btn" id="admx">Cancel</button></div>
+</div></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const nf2 = new Intl.NumberFormat("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf0 = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 });
+const f2 = v => v == null ? "—" : nf2.format(v), f0 = v => v == null ? "—" : nf0.format(v);
+const rs = v => v == null ? "—" : (v < 0 ? "−₹" : "₹") + nf0.format(Math.abs(v));
+const srs = v => v == null ? "—" : (v > 0 ? "+₹" : v < 0 ? "−₹" : "₹") + nf0.format(Math.abs(v));
+const cls = v => v > 0 ? "up" : v < 0 ? "down" : "";
+const esc = t => String(t ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const hm = ts => new Date(ts * 1000).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+const dhm = ts => new Date(ts * 1000).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Kolkata" });
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+let D = null, view = "overview", admin = "";
+try { admin = localStorage.getItem("sbx-admin") || ""; } catch (e) {}
+const setAdmin = k => { admin = k; document.body.classList.toggle("admin", !!k); $("lock").textContent = k ? "🔓 Admin" : "🔒 Admin";
+  try { k ? localStorage.setItem("sbx-admin", k) : localStorage.removeItem("sbx-admin"); } catch (e) {} };
+setAdmin(admin);
+
+async function api(path, opts = {}) {
+  const r = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", ...(admin ? { "X-Admin-Key": admin } : {}), ...(opts.headers || {}) } });
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401 && path.includes("/admin")) { setAdmin(""); throw new Error("admin key rejected"); }
+  if (!r.ok) throw Object.assign(new Error(j.reason || j.detail || j.error || r.statusText), { body: j });
+  return j;
+}
+
+// ---------------- tabs
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => {
+  view = b.dataset.v;
+  document.querySelectorAll("#tabs button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "v-" + view));
+  if (view === "options") loadChain(); if (view === "stocks") loadStocks();
+  render();
+});
+
+// ---------------- render dash
+function render() {
+  if (!D) return;
+  const a = D.account;
+  $("clock").textContent = D.t + " IST";
+  const m = a.market;
+  $("mkt").className = "pill " + (m === "open" ? "open" : "");
+  $("mkt-t").textContent = m === "open" ? "Market open" : m === "mock" ? "Mock market" : "Market closed";
+  $("halt").className = "banner" + (a.halted ? " show" : "");
+  $("halt").textContent = a.halted ? "⛔ Trading halted — " + a.halted + ". Closing orders still work." : "";
+  const open = D.positions.length;
+  $("kpis").innerHTML = [
+    ["Equity", rs(a.equity), `start ${rs(a.capital)}`, ""],
+    ["Today", srs(a.day_pnl), `loss limit ${rs(D.limits.pot)}`, cls(a.day_pnl)],
+    ["Total P&L", srs(a.total_pnl), `${((a.total_pnl / a.capital) * 100).toFixed(2)}%`, cls(a.total_pnl)],
+    ["Free cash", rs(a.cash), "not tied up in positions", ""],
+    ["Open positions", String(open), `${D.orders.length} open orders`, ""],
+    ["Bots", String(D.agents.length), D.agents.length ? `best: ${esc(D.agents[0].name)}` : "none connected yet", ""],
+  ].map(([l, v, s, c]) => `<div class="kpi"><div class="l">${l}</div><div class="v ${c}">${v}</div><div class="s">${s}</div></div>`).join("");
+  if (view === "overview") renderOverview();
+  if (view === "bots") renderBots();
+  if (view === "activity") renderActivity();
+}
+
+function renderOverview() {
+  drawEquity();
+  $("events").innerHTML = D.events.map(e => `<div><span class="t">${dhm(e.ts)}</span><span class="${esc(e.level)}">${esc(e.text)}</span></div>`).join("") || `<div class="empty">No events yet.</div>`;
+  $("pos-n").textContent = D.positions.length ? D.positions.length + " open" : "";
+  $("positions").innerHTML = D.positions.length ? `<table class="num"><tr><th>Bot</th><th>Symbol</th><th>Product</th><th>Qty</th><th>Avg</th><th>LTP</th><th>Unrealised</th><th class="adminonly"></th></tr>` +
+    D.positions.map(p => `<tr><td>${esc(p.agent)}</td><td>${esc(p.symbol)}</td><td>${esc(p.product)}</td><td class="${cls(p.qty)}">${p.qty}</td><td>${f2(p.avg)}</td><td>${f2(p.ltp)}</td>
+      <td class="${cls(p.unrealized)}">${srs(p.unrealized)}</td><td>${admin ? `<button class="btn sm red" onclick='closePos(${JSON.stringify([p.agent, p.symbol, p.product])})'>Close</button>` : ""}</td></tr>`).join("") + "</table>"
+    : `<div class="empty">No open positions.</div>`;
+  $("ord-n").textContent = D.orders.length ? D.orders.length + " open" : "";
+  $("orders").innerHTML = D.orders.length ? `<table class="num"><tr><th>Bot</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Type</th><th>Price / trigger</th><th>Placed</th><th></th></tr>` +
+    D.orders.map(o => `<tr><td>${esc(o.agent)}</td><td>${esc(o.symbol)}</td><td class="${o.side === "BUY" ? "up" : "down"}">${o.side}</td><td>${o.qty}</td><td>${o.type}</td>
+      <td>${o.type === "LIMIT" ? f2(o.price) : o.type === "SLM" ? "trg " + f2(o.trigger) : "—"}</td><td>${hm(o.created)}</td>
+      <td>${admin ? `<button class="btn sm" onclick="cancelOrd('${esc(o.id)}')">Cancel</button>` : ""}</td></tr>`).join("") + "</table>"
+    : `<div class="empty">No open orders.</div>`;
+}
+
+function drawEquity() {
+  const c = $("eq"), dpr = devicePixelRatio || 1, W = c.clientWidth, H = c.clientHeight;
+  c.width = W * dpr; c.height = H * dpr;
+  const x = c.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
+  const pts = D.equity; x.font = "11px -apple-system, sans-serif"; x.fillStyle = css("--t3");
+  if (pts.length < 2) { x.fillText("Equity curve appears after a few minutes of running.", 12, H / 2); return; }
+  const cap = D.account.capital;
+  let lo = Math.min(cap, ...pts.map(p => p.equity)), hi = Math.max(cap, ...pts.map(p => p.equity));
+  if (hi - lo < 1) { hi += 50; lo -= 50; } const pad = (hi - lo) * .1; lo -= pad; hi += pad;
+  const L = 8, R = 70, T = 10, B = 20, t0 = pts[0].ts, t1 = pts[pts.length - 1].ts;
+  const X = t => L + (W - L - R) * (t - t0) / Math.max(1, t1 - t0), Y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  x.strokeStyle = "#1c1c1c"; for (let g = 0; g <= 3; g++) { const v = lo + (hi - lo) * g / 3, y = Math.round(Y(v)) + .5;
+    x.beginPath(); x.moveTo(L, y); x.lineTo(W - R, y); x.stroke(); x.fillText("₹" + nf0.format(v), W - R + 6, y + 4); }
+  x.setLineDash([5, 4]); x.strokeStyle = "#8c8c8c"; x.beginPath(); x.moveTo(L, Y(cap)); x.lineTo(W - R, Y(cap)); x.stroke(); x.setLineDash([]);
+  const last = pts[pts.length - 1].equity;
+  x.strokeStyle = last >= cap ? css("--good") : css("--bad"); x.lineWidth = 2; x.beginPath();
+  pts.forEach((p, i) => i ? x.lineTo(X(p.ts), Y(p.equity)) : x.moveTo(X(p.ts), Y(p.equity))); x.stroke();
+  x.fillStyle = css("--t3"); x.fillText(dhm(t0), L, H - 4); const e = dhm(t1); x.fillText(e, W - R - x.measureText(e).width, H - 4);
+}
+window.addEventListener("resize", () => { if (view === "overview" && D) drawEquity(); });
+
+function renderBots() {
+  $("board").innerHTML = D.agents.length ? `<table class="num"><tr><th>#</th><th>Bot</th><th>Net P&amp;L</th><th>Realised</th><th>Unrealised</th><th>Charges</th><th>Trades</th><th>Win rate</th><th>Status</th></tr>` +
+    D.agents.map((g, i) => `<tr><td>${i + 1}</td><td><b>${esc(g.name)}</b></td><td class="${cls(g.net)}">${srs(g.net)}</td><td>${srs(g.realized)}</td><td class="${cls(g.unrealized)}">${srs(g.unrealized)}</td>
+      <td>${rs(g.charges)}</td><td>${g.trades}</td><td>${g.win_rate == null ? "—" : g.win_rate + "%"}</td><td class="${g.blocked ? "down" : ""}">${g.blocked ? "blocked: " + esc(g.blocked) : "active"}</td></tr>`).join("") + "</table>"
+    : `<div class="empty">No bots yet. Create an API key below, or start the built-in bots (Phase 3).</div>`;
+  document.querySelectorAll(".adminonly").forEach(e => e.style.display = admin ? "" : "none");
+}
+
+function renderActivity() {
+  $("trades").innerHTML = D.trades.length ? `<table class="num"><tr><th>Time</th><th>Bot</th><th>Symbol</th><th>Side</th><th>Qty</th><th>Price</th><th>Product</th><th>Charges</th><th>P&amp;L</th></tr>` +
+    D.trades.map(t => `<tr><td>${dhm(t.ts)}</td><td>${esc(t.agent)}</td><td>${esc(t.symbol)}</td><td class="${t.side === "BUY" ? "up" : "down"}">${t.side}</td><td>${t.qty}</td>
+      <td>${f2(t.price)}</td><td>${esc(t.product)}</td><td>${f2(t.charges)}</td><td class="${cls(t.pnl)}">${t.pnl ? srs(t.pnl) : "—"}</td></tr>`).join("") + "</table>"
+    : `<div class="empty">No trades yet.</div>`;
+}
+
+// ---------------- market tabs (polled only while visible)
+let chainExp = "";
+async function loadChain() {
+  try {
+    const c = await api("/api/market/chain?expiry=" + encodeURIComponent(chainExp));
+    const sel = $("expiry");
+    if (sel.options.length !== c.expiries.length) {
+      sel.innerHTML = c.expiries.map(e => `<option value="${e}">${new Date(e + "T00:00:00").toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short" })}</option>`).join("");
+    }
+    sel.value = c.expiry; chainExp = c.expiry;
+    $("spot").textContent = f2(c.spot);
+    const atm = c.spot ? Math.round(c.spot / 50) * 50 : null;
+    const cell = (q, fld) => q && q[fld] != null ? `<td class="px" data-s="${esc(q.symbol)}">${f2(q[fld])}</td>` : `<td>—</td>`;
+    $("chain").innerHTML = `<table class="num"><tr><th>Bid</th><th>Ask</th><th class="c">Call LTP</th><th class="c">Strike</th><th class="c">Put LTP</th><th>Bid</th><th>Ask</th></tr>` +
+      c.rows.map(r => `<tr class="${r.strike === atm ? "atm" : ""}">${cell(r.CE, "bid")}${cell(r.CE, "ask")}${cell(r.CE, "ltp").replace("<td", '<td style="text-align:center"')}
+        <td class="k">${f0(r.strike)}</td>${cell(r.PE, "ltp").replace("<td", '<td style="text-align:center"')}${cell(r.PE, "bid")}${cell(r.PE, "ask")}</tr>`).join("") + "</table>";
+    const w = $("chain"), row = w.querySelector("tr.atm");
+    if (row && w.dataset.scrolled !== c.expiry) { w.dataset.scrolled = c.expiry; w.scrollTop = Math.max(0, row.offsetTop - w.clientHeight / 2); }
+    $("ch-hint").textContent = `lot ${c.rows[0] && c.rows[0].CE ? c.rows[0].CE.lot : "—"} · option buying only`;
+  } catch (e) { $("chain").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+$("expiry").onchange = e => { chainExp = e.target.value; const w = $("chain"); w.dataset.scrolled = ""; loadChain(); };
+$("chain").addEventListener("click", e => { const td = e.target.closest("td.px"); if (td) openTicket(td.dataset.s); });
+
+let stocks = [];
+async function loadStocks() {
+  try { stocks = await api("/api/market/stocks"); drawStocks(); } catch (e) { $("stocks").innerHTML = `<div class="empty">${esc(e.message)}</div>`; }
+}
+function drawStocks() {
+  const q = $("q").value.trim().toUpperCase();
+  const rows = stocks.filter(s => !q || s.symbol.includes(q));
+  $("st-hint").textContent = `${stocks.length} symbols`;
+  $("stocks").innerHTML = `<table class="num"><tr><th>Symbol</th><th>LTP</th><th>Change</th><th>Bid</th><th>Ask</th><th>Prev close</th></tr>` +
+    rows.map(s => `<tr class="srow" data-s="${esc(s.symbol)}" style="cursor:pointer"><td><b>${esc(s.symbol)}</b></td><td>${f2(s.ltp)}</td>
+      <td class="${cls(s.chg_pct)}">${s.chg_pct == null ? "—" : (s.chg_pct > 0 ? "+" : "") + s.chg_pct.toFixed(2) + "%"}</td><td>${f2(s.bid)}</td><td>${f2(s.ask)}</td><td>${f2(s.prev_close)}</td></tr>`).join("") + "</table>";
+}
+$("q").oninput = drawStocks;
+$("stocks").addEventListener("click", e => { const tr = e.target.closest("tr.srow"); if (tr) openTicket(tr.dataset.s); });
+setInterval(() => { if (document.hidden) return; if (view === "options") loadChain(); if (view === "stocks") loadStocks(); }, 2000);
+
+// ---------------- order ticket (admin, books to agent "manual")
+let tk = {};
+const segPick = (id, v) => document.querySelectorAll(`#${id} button`).forEach(b => b.classList.toggle("on", b.dataset.v === v));
+async function openTicket(sym) {
+  if (!admin) { askKey(); return; }
+  const isOpt = sym.startsWith("NIFTY-");
+  let lot = 1;
+  try { const s = isOpt ? null : stocks.find(x => x.symbol === sym); lot = isOpt ? 65 : 1; } catch (e) {}
+  tk = { symbol: sym, side: "BUY", type: "MARKET", product: "MIS", lot };
+  $("tk-sym").textContent = sym; $("tk-qty").value = lot; $("tk-qty").step = lot; $("tk-lot").textContent = isOpt ? "multiples of the lot" : "shares";
+  $("tk-prod").innerHTML = (isOpt ? [["MIS", "Intraday"], ["NRML", "Carry"]] : [["MIS", "Intraday"], ["CNC", "Delivery"]])
+    .map(([v, l], i) => `<button data-v="${v}" class="${i ? "" : "on"}">${l}</button>`).join("");
+  segPick("tk-side", "BUY"); segPick("tk-type", "MARKET"); $("tk-pr").style.display = "none"; $("tk-msg").textContent = "";
+  $("ticket").classList.add("show"); quoteTicket();
+}
+async function quoteTicket() {
+  try {
+    const r = await fetch("/api/market/" + (tk.symbol.startsWith("NIFTY-") ? "chain?expiry=" + chainExp : "stocks")).then(r => r.json());
+    const q = tk.symbol.startsWith("NIFTY-") ? r.rows.flatMap(x => [x.CE, x.PE]).find(x => x && x.symbol === tk.symbol) : r.find(x => x.symbol === tk.symbol);
+    if (q) { tk.q = q; if (q.lot) { tk.lot = q.lot; $("tk-qty").step = q.lot; if (+$("tk-qty").value % q.lot) $("tk-qty").value = q.lot; }
+      $("tk-q").textContent = `LTP ${f2(q.ltp)} · bid ${f2(q.bid)} · ask ${f2(q.ask)}`; estimate(); }
+  } catch (e) {}
+}
+function estimate() {
+  const q = tk.q || {}, qty = +$("tk-qty").value || 0;
+  const px = tk.type === "MARKET" ? (tk.side === "BUY" ? q.ask || q.ltp : q.bid || q.ltp) : +$("tk-price").value;
+  $("tk-est").textContent = px ? `≈ ₹${nf0.format(px * qty)} ${tk.side === "BUY" ? "needed" : "value"} (+ charges)` : "";
+}
+["tk-side", "tk-type", "tk-prod"].forEach(id => $(id).addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  const k = { "tk-side": "side", "tk-type": "type", "tk-prod": "product" }[id]; tk[k] = b.dataset.v; segPick(id, b.dataset.v);
+  if (id === "tk-type") { $("tk-pr").style.display = tk.type === "MARKET" ? "none" : ""; $("tk-prl").textContent = tk.type === "SLM" ? "Trigger" : "Price"; }
+  estimate();
+}));
+$("tk-qty").oninput = estimate; $("tk-price").oninput = estimate;
+$("tk-x").onclick = () => $("ticket").classList.remove("show");
+$("tk-go").onclick = async () => {
+  const body = { symbol: tk.symbol, side: tk.side, qty: +$("tk-qty").value, type: tk.type, product: tk.product };
+  if (tk.type === "LIMIT") body.price = +$("tk-price").value; if (tk.type === "SLM") body.trigger = +$("tk-price").value;
+  $("tk-msg").textContent = "Placing…";
+  try { const o = await api("/api/admin/order", { method: "POST", body: JSON.stringify(body) });
+    $("tk-msg").innerHTML = `<span class="up">${o.status === "FILLED" ? `Filled at ${f2(o.avg_price)}` : "Order is open (waiting for price)"}</span>`;
+  } catch (e) { $("tk-msg").innerHTML = `<span class="down">Rejected: ${esc(e.message)}</span>`; }
+};
+
+// ---------------- admin actions
+function askKey() { $("admmsg").textContent = ""; $("admkey").value = ""; $("keybox").classList.add("show"); $("admkey").focus(); }
+$("lock").onclick = () => admin ? null : askKey();
+$("logout").onclick = () => setAdmin("");
+$("admx").onclick = () => $("keybox").classList.remove("show");
+$("admgo").onclick = async () => {
+  const k = $("admkey").value.trim();
+  const r = await fetch("/api/admin/agents", { headers: { "X-Admin-Key": k } });
+  if (r.ok) { setAdmin(k); $("keybox").classList.remove("show"); render(); } else $("admmsg").innerHTML = `<span class="down">Wrong key.</span>`;
+};
+document.querySelectorAll(".adminbar [data-a]").forEach(b => b.onclick = async () => {
+  const a = b.dataset.a;
+  const ask = { halt: "Halt all trading? Closing orders will still work.", squareoff: "Close EVERY open position at market now?",
+                reset: "Reset the pot to ₹50,000? Open positions and orders are wiped (history is kept).", resume: null }[a];
+  if (ask && !confirm(ask)) return;
+  try { await api("/api/admin/" + a, { method: "POST", body: JSON.stringify(a === "halt" ? { reason: "halted from the website" } : {}) }); }
+  catch (e) { alert(e.message); }
+});
+window.closePos = async ([agent, symbol, product]) => {
+  if (!confirm(`Close ${agent}'s ${symbol} at market?`)) return;
+  try { await api("/api/admin/close", { method: "POST", body: JSON.stringify({ agent, symbol, product }) }); } catch (e) { alert(e.message); }
+};
+window.cancelOrd = async id => { try { await api("/api/admin/cancel/" + id, { method: "POST" }); } catch (e) { alert(e.message); } };
+$("mk").onclick = async () => {
+  const name = $("newname").value.trim(); if (!name) return;
+  try { const r = await api("/api/admin/agents", { method: "POST", body: JSON.stringify({ name }) });
+    $("mkmsg").innerHTML = `Key for <b>${esc(r.name)}</b> (shown once — copy it into the bot's .env):<div class="key">${esc(r.api_key)}</div>`;
+  } catch (e) { $("mkmsg").innerHTML = `<span class="down">${esc(e.message)}</span>`; }
+};
+
+// ---------------- live dashboard stream (+ watchdog)
+let ws, last = Date.now();
+function connect() {
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
+  const me = ws;
+  ws.onmessage = e => { if (me !== ws) return; last = Date.now(); D = JSON.parse(e.data); render(); };
+  ws.onclose = () => { if (me !== ws) return; $("mkt-t").textContent = "reconnecting…"; setTimeout(connect, 1500); };
+}
+setInterval(() => { if (!document.hidden && Date.now() - last > 6000) { last = Date.now(); try { ws.close(); } catch (e) {} ws = null; connect(); } }, 2000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden && Date.now() - last > 6000) { last = Date.now(); ws = null; connect(); } });
+connect();
+</script>
+</body>
+</html>

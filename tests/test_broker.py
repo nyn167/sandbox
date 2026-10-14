@@ -167,8 +167,17 @@ def test_api_keys_orders_and_admin(tmp_path, monkeypatch):
     assert c.post("/api/v1/orders", json={"symbol": sym, "side": "SELL", "qty": 7}, headers=h).status_code == 422
     assert c.get("/api/v1/account", headers=h).json()["agent"]["name"] == "orb-bot"
     assert c.get("/api/v1/chain", headers=h).json()["rows"]
+    st = c.get("/api/market/stocks").json()
+    assert len(st) == 50 and {"symbol", "ltp", "chg_pct"} <= set(st[0])
+    assert c.get("/api/market/chain").json()["rows"]
+    adm = {"X-Admin-Key": "adm_test"}
+    m = c.post("/api/admin/order", json={"symbol": "RELIANCE", "side": "BUY", "qty": 1}, headers=adm)
+    assert m.status_code == 200 and m.json()["agent"] == "manual"
+    assert c.post("/api/admin/order", json={"symbol": "RELIANCE", "side": "BUY", "qty": 1}).status_code == 401
+    assert c.post("/api/admin/close", json={"agent": "manual", "symbol": "RELIANCE", "product": "MIS"}, headers=adm).status_code == 200
+    assert "NYN SANDBOX" in c.get("/").text
     d = c.get("/api/dash").json()
-    assert d["agents"][0]["name"] == "orb-bot" and d["positions"]
+    assert {a["name"] for a in d["agents"]} == {"orb-bot", "manual"} and d["positions"]
 
 
 def test_no_real_order_code_anywhere():
