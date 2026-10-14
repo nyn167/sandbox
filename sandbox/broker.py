@@ -172,7 +172,9 @@ class Broker:
             k, kp = "OPT", "OPT"
         else:
             k, kp = "EQ", ("EQ_CNC" if product == "CNC" else "EQ_MIS")
-        brokerage = c["brokerage_per_order"][kp if ins.kind == "EQ" else "OPT"]
+        # intraday (MIS) pays ₹20 per executed order + 18 % GST on it; swing (option NRML / stock CNC) pays
+        # no brokerage - only the statutory charges (STT, exchange, SEBI, stamp duty, GST on those fees)
+        brokerage = c["brokerage_per_order"][kp if ins.kind == "EQ" else ("OPT_MIS" if product == "MIS" else "OPT_NRML")]
         stt = 0.0
         if ins.kind == "OPT" and side == "SELL":
             stt = value * c["stt_pct"]["OPT_SELL"] / 100

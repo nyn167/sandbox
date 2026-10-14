@@ -186,3 +186,18 @@ def test_no_real_order_code_anywhere():
     hits = [f"{p.name}:{i}" for p in (ROOT / "sandbox").rglob("*.py")
             for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1) if bad.search(line)]
     assert not hits, hits
+
+
+def test_brokerage_intraday_vs_swing(tmp_path):
+    """₹20 + GST on intraday orders; swing (option NRML, stock CNC) pays taxes only."""
+    b, *_ = market(tmp_path)
+    opt, eq = b.reg.get("NIFTY-20OCT26-25000-CE"), b.reg.get("RELIANCE")
+    gst_on_20 = 20 * 0.18
+    for ins, mis, swing, value in ((opt, "MIS", "NRML", 6500.0), (eq, "MIS", "CNC", 14000.0)):
+        for side in ("BUY", "SELL"):
+            intraday, carry = b.charges(ins, side, mis, value), b.charges(ins, side, swing, value)
+            taxes_only = carry if ins.kind == "OPT" else b.charges(ins, side, mis, value) - 20 - gst_on_20
+            assert intraday - taxes_only == pytest.approx(20 + gst_on_20, abs=0.02)
+    assert b.charges(opt, "SELL", "NRML", 6500.0) < 10                      # no brokerage on a swing option exit
+    assert b.charges(eq, "BUY", "CNC", 14000.0) == pytest.approx(14000 * (0.1 + 0.00297 + 0.015) / 100
+                                                                  + 14000 * 10 / 1e7 + (14000 * 0.00297 / 100 + 14000 * 10 / 1e7) * 0.18, abs=0.02)

@@ -26,7 +26,7 @@ fills:
   mis_leverage: 1                # 1 = no leverage on intraday stocks (conservative)
 
 charges:                         # approximate NSE + Dhan-style rates; edit to match your broker
-  brokerage_per_order: {OPT: 20, EQ_MIS: 20, EQ_CNC: 0}
+  brokerage_per_order: {OPT_MIS: 20, OPT_NRML: 0, EQ_MIS: 20, EQ_CNC: 0}   # ₹20 + GST intraday; swing/delivery: taxes only
   stt_pct: {OPT_SELL: 0.1, EQ_MIS_SELL: 0.025, EQ_CNC: 0.1}
   exchange_pct: {OPT: 0.03503, EQ: 0.00297}
   sebi_per_crore: 10
