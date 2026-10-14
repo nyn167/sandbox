@@ -1,0 +1,43 @@
+# NYN paper-trading sandbox. PAPER MONEY ONLY — this app has no code path that places real orders.
+
+account:
+  capital: 50000                 # ₹ — one shared pot for every bot / agent
+  daily_loss_limit: 2500         # ₹ — whole pot: new orders are blocked for the day once hit (closing allowed)
+
+agents:                          # per bot / API agent (each has its own key and P&L inside the shared pot)
+  daily_loss_limit: 1500         # ₹
+  max_open_positions: 5
+  max_order_value: 25000         # ₹ premium / stock value per order
+
+market:
+  dhan_env_file: 'C:\trader\.env'  # read-only: only DHAN_CLIENT_ID + DHAN_ACCESS_TOKEN are read from it
+  index_security_id: 13          # NIFTY 50
+  symbol_prefix: "NIFTY-"
+  option_expiries: 2             # nearest weekly expiries
+  strikes_each_side: 20          # ATM ± 20 strikes per expiry (subscribed once at start)
+  extra_stocks: []               # NSE symbols beyond the Nifty 50, e.g. [IRFC, ZOMATO]
+  stale_after_sec: 15            # a quote older than this can't be traded on (live mode)
+  open: "09:15"
+  close: "15:30"
+  squareoff: "15:15"             # MIS (intraday) positions are closed at market from this time
+
+fills:
+  slippage_pct: {OPT: 0.5, EQ: 0.05}   # applied to LTP when no bid/ask is available
+  mis_leverage: 1                # 1 = no leverage on intraday stocks (conservative)
+
+charges:                         # approximate NSE + Dhan-style rates; edit to match your broker
+  brokerage_per_order: {OPT: 20, EQ_MIS: 20, EQ_CNC: 0}
+  stt_pct: {OPT_SELL: 0.1, EQ_MIS_SELL: 0.025, EQ_CNC: 0.1}
+  exchange_pct: {OPT: 0.03503, EQ: 0.00297}
+  sebi_per_crore: 10
+  stamp_pct_buy: {OPT: 0.003, EQ_MIS: 0.003, EQ_CNC: 0.015}
+  gst_pct: 18
+
+server:
+  host: 127.0.0.1
+  port: 8200
+  public_url: ""                 # set after the Tailscale route exists
+
+mock:
+  start_spot: 25000
+  seed: 7
