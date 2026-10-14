@@ -128,6 +128,7 @@ class MockMarket:
         self.spot = float(cfg["mock"]["start_spot"])
         self.px = {i.sid: self.rng.uniform(150, 3500) for i in reg.stocks()}
         self.status, self.fatal = "live (mock)", None
+        self._vw: dict[int, tuple[int, float]] = {}
         for sid, p in self.px.items():
             store.prev[sid] = (p, 0)
         store.prev[reg.index.sid] = (self.spot, 0)
@@ -143,6 +144,11 @@ class MockMarket:
             self.px[sid] *= math.exp(self.rng.gauss(0, 0.0004))
             p = round(self.px[sid], 2)
             t[sid] = (p, 0, 0, round(p * 0.9998, 2), round(p * 1.0002, 2), 0, now)
+            n, s_ = self._vw.get(sid, (0, 0.0))
+            self._vw[sid] = (n + 1, s_ + p)
+            q = self.store.quote.get(sid)
+            o = q[1] if q else p
+            self.store.quote[sid] = (round((s_ + p) / (n + 1), 2), o, max(p, q[2] if q else p), min(p, q[3] if q else p))
         today = datetime.now(IST)
         for i in self.reg.options():
             close = datetime.combine(i.expiry, datetime.min.time(), IST) + timedelta(hours=15, minutes=30)

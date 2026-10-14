@@ -18,6 +18,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--mock", action="store_true")
     ap.add_argument("--port", type=int)
+    ap.add_argument("--capital", type=float, help="override the pot size (stress tests)")
     a = ap.parse_args()
     for s in (sys.stdout, sys.stderr):
         try:
@@ -34,6 +35,9 @@ def main():
     cfg = load_config()
     if a.port:
         cfg["server"]["port"] = a.port
+    if a.capital:
+        cfg["account"]["capital"] = a.capital
+        cfg["account"]["daily_loss_limit"] = a.capital
     try:
         asyncio.run(serve(cfg, mock=a.mock))
     except KeyboardInterrupt:

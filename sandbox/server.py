@@ -11,6 +11,7 @@ import logging
 import time
 from dataclasses import asdict
 from datetime import datetime
+from pathlib import Path
 
 import uvicorn
 from fastapi import Body, Depends, FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
@@ -30,7 +31,8 @@ class Engine:
     def __init__(self, cfg: dict, mock: bool = False, db_path=None):
         self.cfg, self.mock = cfg, mock
         self.store = TickStore()
-        self.db = DB(db_path or DATA / "db" / ("mock.sqlite" if mock else "sandbox.sqlite"))
+        import os
+        self.db = DB(db_path or Path(os.getenv("SANDBOX_DB") or DATA / "db" / ("mock.sqlite" if mock else "sandbox.sqlite")))
         self.reg: Registry | None = None
         self.feed = None
         self.broker: Broker | None = None
@@ -343,7 +345,7 @@ async def serve(cfg: dict, mock: bool = False) -> None:
     await asyncio.to_thread(engine.setup)
     s = cfg["server"]
     server = uvicorn.Server(uvicorn.Config(make_app(engine), host=s["host"], port=s["port"], log_level="warning",
-                                           access_log=False, lifespan="off"))
+                                           access_log=False, lifespan="off", timeout_keep_alive=65))
     server.capture_signals = contextlib.nullcontext
     loops = asyncio.create_task(engine.run_loops())
     try:

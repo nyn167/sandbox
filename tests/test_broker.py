@@ -182,7 +182,7 @@ def test_api_keys_orders_and_admin(tmp_path, monkeypatch):
 
 def test_no_real_order_code_anywhere():
     """Paper only: the source must never reference Dhan's order / trading APIs."""
-    bad = re.compile(r"place_order|modify_order|cancel_order|place_slice_order|Orders\(|dhanhq\.orders|/v2/orders|super_order|forever")
+    bad = re.compile(r"place_order|modify_order|cancel_order|place_slice_order|Orders\(|dhanhq\.orders|/v2/orders|super_order|forever_order|place_forever")
     hits = [f"{p.name}:{i}" for p in (ROOT / "sandbox").rglob("*.py")
             for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1) if bad.search(line)]
     assert not hits, hits

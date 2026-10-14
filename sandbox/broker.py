@@ -134,7 +134,16 @@ class Broker:
         return {"symbol": ins.symbol, "ltp": f(t[LTP]), "bid": f(t[BID]), "ask": f(t[ASK]),
                 "age": round(self.clock() - t[RECV], 1) if t[RECV] else None,
                 "prev_close": f(prev[0]) if prev else None, "lot": ins.lot, "kind": ins.kind,
-                "expiry": ins.expiry.isoformat() if ins.expiry else None, "strike": ins.strike, "opt": ins.opt}
+                "expiry": ins.expiry.isoformat() if ins.expiry else None, "strike": ins.strike, "opt": ins.opt,
+                **self._day_stats(ins.sid)}
+
+    def _day_stats(self, sid: int) -> dict:
+        """VWAP and day high/low from Dhan Quote packets (stocks); empty when not available."""
+        q = self.store.quote.get(sid)
+        if not q:
+            return {}
+        f = lambda v: round(v, 2) if _ok(v) else None
+        return {"vwap": f(q[0]), "open": f(q[1]), "high": f(q[2]), "low": f(q[3])}
 
     def _fill_price(self, ins, side: str) -> float | None:
         t = self.store.ticks.get(ins.sid)
