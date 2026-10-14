@@ -25,15 +25,26 @@ from sandbox.sdk import Sandbox
 def bot_key(base: str, name: str) -> str:
     var = "BOT_KEY_" + name.upper().replace("-", "_")
     env = dotenv_values(ROOT / ".env") if (ROOT / ".env").exists() else {}
-    if env.get(var):
+    if env.get(var) and requests.get(base + "/api/v1/account", headers={"X-API-Key": env[var]}, timeout=10).status_code == 200:
         return env[var]
     r = requests.post(base + "/api/admin/agents", json={"name": name, "kind": "bot"},
                       headers={"X-Admin-Key": admin_key()}, timeout=10)
     r.raise_for_status()
     key = r.json()["api_key"]
-    with open(ROOT / ".env", "a", encoding="utf-8") as f:
-        f.write(f"{var}={key}\n")
+    lines = [l for l in ((ROOT / ".env").read_text(encoding="utf-8").splitlines() if (ROOT / ".env").exists() else [])
+             if not l.startswith(var + "=")]
+    (ROOT / ".env").write_text("\n".join(lines + [f"{var}={key}"]) + "\n", encoding="utf-8")
     return key
+
+
+def wait_for_server(base: str) -> None:
+    while True:
+        try:
+            if requests.get(base + "/api/dash", timeout=5).status_code == 200:
+                return
+        except requests.RequestException:
+            pass
+        time.sleep(10)
 
 
 def main():
@@ -53,6 +64,7 @@ def main():
     logging.basicConfig(level=logging.INFO, handlers=[fh, sh])
     cfg = load_config()
     base = f"http://127.0.0.1:{a.port or cfg['server']['port']}"
+    wait_for_server(base)
     stop = threading.Event()
     threads = []
     for name in [b.strip() for b in a.bots.split(",") if b.strip()]:

@@ -94,6 +94,14 @@ class Engine:
     async def run_loops(self) -> None:
         nxt_eq = 0.0
         while True:
+            if not self.mock:
+                now = datetime.now(IST)
+                if now.weekday() < 5 and now.strftime("%H:%M") == "08:55" and time.time() - self.started > 600:
+                    log.info("Daily restart: fresh token, expiries and strikes for today's session")
+                    raise SystemExit(0)
+                if getattr(self.feed, "fatal", None) and time.time() - self.started > 120:
+                    log.warning("Feed stopped (%s) — restarting in a minute to pick up a new token", self.feed.fatal)
+                    raise SystemExit(3)
             if self.mock:
                 self.feed.step()
             try:
@@ -348,9 +356,14 @@ async def serve(cfg: dict, mock: bool = False) -> None:
                                            access_log=False, lifespan="off", timeout_keep_alive=65))
     server.capture_signals = contextlib.nullcontext
     loops = asyncio.create_task(engine.run_loops())
+    serve_t = asyncio.create_task(server.serve())
     try:
-        await server.serve()
+        done, _ = await asyncio.wait([loops, serve_t], return_when=asyncio.FIRST_COMPLETED)
+        for t in done:
+            t.result()
     finally:
+        server.should_exit = True
+        await asyncio.wait([serve_t], timeout=5)
         loops.cancel()
         if engine.feed:
             await asyncio.to_thread(engine.feed.stop)
