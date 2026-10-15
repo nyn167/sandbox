@@ -201,3 +201,12 @@ def test_brokerage_intraday_vs_swing(tmp_path):
     assert b.charges(opt, "SELL", "NRML", 6500.0) < 10                      # no brokerage on a swing option exit
     assert b.charges(eq, "BUY", "CNC", 14000.0) == pytest.approx(14000 * (0.1 + 0.00297 + 0.015) / 100
                                                                   + 14000 * 10 / 1e7 + (14000 * 0.00297 / 100 + 14000 * 10 / 1e7) * 0.18, abs=0.02)
+
+
+def test_prev_close_skips_todays_daily_candle():
+    from sandbox.server import prev_close_from_daily
+    ts = lambda d: datetime(2026, 10, d, 0, 0, tzinfo=IST).timestamp()
+    today = date(2026, 10, 15)
+    assert prev_close_from_daily([ts(13), ts(14), ts(15)], [100, 101, 103], today) == 101   # after the close
+    assert prev_close_from_daily([ts(13), ts(14)], [100, 101], today) == 101                # morning, no candle yet
+    assert prev_close_from_daily([], [], today) is None

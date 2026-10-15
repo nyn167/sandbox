@@ -50,6 +50,8 @@ class Engine:
             spot = self._rest_spot(cid, tok)
             self.reg = build_live(self.cfg, df, spot)
             self._seed_quotes(cid, tok)
+            import threading
+            threading.Thread(target=self._seed_prev_closes, args=(cid, tok), name="prev-close", daemon=True).start()
             from .market.dhan_feed import DhanFeed
             self.feed = DhanFeed(cid, tok, self.store)
             self.feed.start(self.reg.feed_list())
@@ -89,6 +91,40 @@ class Engine:
                 ltp = float(x.get("last_price") or float("nan"))
                 self.store.ticks.setdefault(int(sid), (ltp, int(x.get("oi") or 0), int(x.get("volume") or 0),
                                                        bid or float("nan"), ask or float("nan"), 0, 0.0))
+
+    def _seed_prev_closes(self, cid, tok) -> None:
+        """Previous close for every stock from Dhan daily candles (the live stream sends it only in market hours).
+
+        Cached per day in data/cache; never overrides a prev-close the live feed already delivered.
+        """
+        import json
+        from datetime import timedelta
+        cache = DATA / "cache" / f"prev_close_{datetime.now(IST).date().isoformat()}.json"
+        try:
+            got = json.loads(cache.read_text(encoding="utf-8")) if cache.exists() else {}
+        except ValueError:
+            got = {}
+        if not got:
+            from dhanhq import DhanContext, HistoricalData           # historical candles REST only
+            hd = HistoricalData(DhanContext(cid, tok))
+            today = datetime.now(IST).date()
+            frm, to = (today - timedelta(days=10)).isoformat(), (today + timedelta(days=1)).isoformat()
+            for ins in self.reg.stocks():
+                try:
+                    r = hd.historical_daily_data(str(ins.sid), "NSE_EQ", "EQUITY", frm, to)
+                    d = r.get("data") or {}
+                    pc = prev_close_from_daily(d.get("timestamp") or [], d.get("close") or [], today)
+                    if pc:
+                        got[str(ins.sid)] = pc
+                except Exception as e:
+                    log.debug("daily candles %s: %s", ins.symbol, e)
+                time.sleep(0.35)                                       # Dhan data API: stay well under 5 req/s
+            if got:
+                cache.parent.mkdir(parents=True, exist_ok=True)
+                cache.write_text(json.dumps(got), encoding="utf-8")
+        for sid, pc in got.items():
+            self.store.prev.setdefault(int(sid), (float(pc), 0))
+        log.info("Previous closes ready for %d stocks", len(got))
 
     # ---- loops
     async def run_loops(self) -> None:
@@ -168,6 +204,13 @@ class Engine:
                 "events": self.db.q("SELECT * FROM events ORDER BY id DESC LIMIT 30"),
                 "equity": self.db.q("SELECT ts, equity FROM equity WHERE ts >= ? ORDER BY ts",
                                     (time.time() - 7 * 86400,))}
+
+
+def prev_close_from_daily(timestamps, closes, today) -> float | None:
+    """Close of the last session before `today` (today's candle, if already present, is skipped)."""
+    days = [(datetime.fromtimestamp(t, IST).date(), c) for t, c in zip(timestamps, closes) if c]
+    before = [c for d, c in days if d < today]
+    return float(before[-1]) if before else None
 
 
 # ------------------------------------------------------------------------------ API
