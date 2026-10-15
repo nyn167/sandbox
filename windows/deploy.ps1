@@ -17,6 +17,10 @@ if ($p.ExitCode -ne 0) {
     exit 1
 }
 Remove-Item _t.out,_t.err
-Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like "*C:\sandbox\.venv*" -and ($_.CommandLine -like "*run.py*" -or $_.CommandLine -like "*bots.py*") } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+# venv launcher (C:\sandbox\.venv\Scripts\python.exe) + the real interpreter it spawns (child process)
+$all = Get-CimInstance Win32_Process
+$launchers = $all | Where-Object { $_.ExecutablePath -like "C:\sandbox\.venv\*" -and ($_.CommandLine -match "run\.py|bots\.py") }
+$ids = @($launchers.ProcessId) + @(($all | Where-Object { $launchers.ProcessId -contains $_.ParentProcessId }).ProcessId)
+$ids | Where-Object { $_ } | ForEach-Object { Stop-Process -Id $_ -Force -ErrorAction SilentlyContinue }
+Write-Host "Stopped $(@($ids | Where-Object { $_ }).Count) sandbox process(es)."
 Write-Host "Deployed. Server restarts within ~30 s, bots within ~60 s."
