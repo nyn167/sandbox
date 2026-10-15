@@ -14,9 +14,18 @@ import asyncio
 import logging
 import threading
 
+import functools
+
 import websockets
 from dhanhq import DhanContext
+from dhanhq import marketfeed as _dhan_marketfeed
 from dhanhq.marketfeed import MarketFeed
+
+# dhanhq opens the socket with websockets' defaults (keepalive ping every 20 s, give up after 20 s without a pong).
+# On 2026-10-15 Dhan stopped answering pings on full-depth connections while data kept flowing, so the default
+# made us drop a healthy feed every ~55 s. Keepalive pings are off; a data watchdog (STALL_S) catches dead links.
+_dhan_marketfeed.websockets.connect = functools.partial(websockets.connect, ping_interval=None, max_size=None)
+STALL_S = 120          # no packet at all for this long while connected → reconnect
 
 from ..config import TOKEN_HELP
 from .packets import DISCONNECT_REASONS, FATAL_CODES, parse_into
@@ -118,7 +127,13 @@ class DhanFeed:
                 delay = 1.0
                 ws = feed.ws
                 while self._running:
-                    parse_into(store, await ws.recv())
+                    try:
+                        msg = await asyncio.wait_for(ws.recv(), STALL_S)
+                    except asyncio.TimeoutError:
+                        log.warning("Dhan feed: no data for %d s — reconnecting", STALL_S)
+                        await ws.close()
+                        break
+                    parse_into(store, msg)
             except websockets.ConnectionClosed as e:
                 rc = e.rcvd
                 log.warning("Dhan feed closed (ws code=%s reason=%r)",
