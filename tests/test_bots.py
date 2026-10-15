@@ -87,3 +87,38 @@ def test_momentum_waits_for_nifty_and_time(sb_env):
     at(bot, 9, 45)
     bot.run_once()
     assert not bot.sb.positions()                             # before 10:00: never enters
+
+
+class FakeFeed:
+    def __init__(self, d):
+        self.latest, self.at = d, time.time()
+
+
+def _trader_payload(e, regime="trending", resp=95, side="CE", direction=1, hot=None):
+    spot = e.broker.mark("NIFTY")
+    exp = e.reg.expiries[0].isoformat()
+    return {"type": "tick", "mode": "MOCK", "spot": spot, "trade_n": 0,
+            "chains": [{"expiry": exp, "label": "This week", "bias": {"dir": direction, "conf": 70, "agree": 4, "label": "Bullish"},
+                        "behav": {"regime": {"state": "ok", "label": regime}, "expiry": {"window": "comfortable"},
+                                  "response": {"5": {"state": "ok", "side": side, "avg_pct": resp}}, "hot": hot or []}}]}
+
+
+def test_oi_behaviour_enters_only_when_behaviour_confirms(sb_env):
+    from sandbox.bots.strategies import OiBehaviour
+    e, key = sb_env
+    feed = FakeFeed(_trader_payload(e, regime="choppy"))
+    bot = OiBehaviour(Sandbox(f"http://127.0.0.1:{PORT}", key("oib-test")), mock=True, feed=feed)
+    at(bot, 10, 0)
+    bot.run_once()
+    assert not bot.sb.positions()                                   # choppy → no trade
+    feed.latest = _trader_payload(e, resp=40)
+    bot.run_once()
+    assert not bot.sb.positions()                                   # calls lagging → no trade
+    feed.latest = _trader_payload(e)
+    bot.run_once()
+    pos = bot.sb.positions()
+    assert len(pos) == 1 and pos[0]["symbol"].endswith("-CE") and pos[0]["avg"] * pos[0]["qty"] <= OiBehaviour.budget
+    feed.latest = _trader_payload(e, regime="choppy")
+    for _ in range(3):                                              # behaviour fades for 3 checks → exit
+        bot.run_once()
+    assert not [p for p in bot.sb.positions() if p["qty"]]

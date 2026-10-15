@@ -3,6 +3,7 @@
 orb-nifty     Nifty options: buy an ATM call / put when spot breaks the 9:15–9:30 opening range.
 vwap-revert   NSE stocks: buy a stock stretched ≥ 0.8 % below its VWAP once it turns up; exit back at VWAP.
 momentum-50   NSE stocks: buy a stock pushing its day high, above VWAP, with Nifty also rising; trailing stop.
+oi-behaviour  Nifty options: the NIFTY OI trader's direction, taken only when option behaviour confirms it.
 """
 from __future__ import annotations
 
@@ -161,4 +162,112 @@ class Momentum50(_StockBot):
                 self.peak[s] = q["ask"]
 
 
-BOTS = {b.name: b for b in (OrbNifty, VwapRevert, Momentum50)}
+class TraderFeed:
+    """Read-only reader of the NIFTY OI trader's dashboard stream (ws://127.0.0.1:8000/ws) — like a browser tab.
+
+    Keeps the latest payload; reconnects forever; never sends anything to the trader.
+    """
+
+    def __init__(self, url: str = "ws://127.0.0.1:8000/ws"):
+        import threading
+        self.url, self.latest, self.at = url, None, 0.0
+        threading.Thread(target=self._run, name="trader-feed", daemon=True).start()
+
+    def _run(self):
+        import json as _json
+        import time as _time
+        from websockets.sync.client import connect
+        while True:
+            try:
+                with connect(self.url, open_timeout=10, max_size=None) as ws:
+                    for msg in ws:
+                        d = _json.loads(msg)
+                        if d.get("type") == "tick":
+                            self.latest, self.at = d, _time.time()
+            except Exception:
+                _time.sleep(5)
+
+
+class OiBehaviour(Bot):
+    name = "oi-behaviour"
+    interval = 5.0
+    description = ("Trader's direction + option behaviour: buy only when the trend is clean, options are keeping up "
+                   "(≥80 % of the move) and the expiry window allows it; +25 % / −15 % / out by 15:00")
+    budget, target, stop, max_trades = 12_000, 0.25, 0.15, 3
+
+    def __init__(self, sb, mock: bool = False, feed=None):
+        super().__init__(sb, mock)
+        self.feed = feed if feed is not None else TraderFeed()
+        self.weak = 0
+
+    def _trader(self):
+        import time as _time
+        d = self.feed.latest
+        if not d or _time.time() - self.feed.at > 15 or d.get("mode") not in ("LIVE", "MOCK"):
+            return None, None
+        ch = d["chains"][min(d.get("trade_n") or 0, len(d["chains"]) - 1)]
+        return d, ch
+
+    @staticmethod
+    def why_not(ch: dict, direction: int) -> str:
+        """Same rules as the trader's (switched-off) behaviour gate, plus the stricter entry bar of this bot."""
+        b = ch.get("behav") or {}
+        rg, ex = b.get("regime") or {}, b.get("expiry") or {}
+        r = (b.get("response") or {}).get("5") or {}
+        side = "CE" if direction > 0 else "PE"
+        if rg.get("label") != "trending":
+            return f"regime {rg.get('label') or rg.get('state') or '?'}"
+        if r.get("state") != "ok" or r.get("side") != side or r.get("avg_pct") is None:
+            return "no option response reading in the trade direction"
+        need = 100 if ex.get("window") == "expiry zone" else 80
+        if r["avg_pct"] < need:
+            return f"options responding {r['avg_pct']:.0f}% (< {need}%)"
+        return ""
+
+    def _pick(self, ch: dict, direction: int, spot: float) -> tuple[str, int] | None:
+        typ = "CE" if direction > 0 else "PE"
+        hot = [h for h in ((ch.get("behav") or {}).get("hot") or []) if h["typ"] == typ]
+        sb_chain = self.sb.chain(ch["expiry"])
+        rows = {r["strike"]: r for r in sb_chain["rows"]}
+        step = 50
+        atm = round(spot / step) * step
+        order = [h["strike"] for h in hot] + [atm + (i if typ == "CE" else -i) * step for i in range(4)]
+        for k in order:
+            q = (rows.get(k) or {}).get(typ)
+            if q and q.get("ask") and q["ask"] * q["lot"] <= self.budget:
+                return q["symbol"], q["lot"]
+        return None
+
+    def step(self):
+        d, ch = self._trader()
+        mine = [p for p in self.sb.positions() if p["qty"]]
+        for p in mine:                                                       # manage the open trade
+            q = self.sb.quote(p["symbol"])
+            px = q.get("bid") or q.get("ltp")
+            if not px:
+                continue
+            r = (px - p["avg"]) / p["avg"]
+            direction = 1 if p["symbol"].endswith("CE") else -1
+            weak = bool(ch) and bool(self.why_not(ch, direction))
+            self.weak = self.weak + 1 if weak else 0
+            why = ("target" if r >= self.target else "stop" if r <= -self.stop else "time exit" if self.clock.at(15, 0)
+                   else "behaviour faded" if self.weak >= 3 else "")
+            if why:
+                o = self.sb.sell(p["symbol"], p["qty"], product=p["product"], tag=why)
+                self.log.info("EXIT %s %s @ %s (%+.0f%%)", p["symbol"], why, o.get("avg_price"), r * 100)
+        if mine or not ch or self.trades_today >= self.max_trades or not self.clock.at(9, 45) or self.clock.at(14, 30):
+            return
+        bias = ch.get("bias") or {}
+        direction = bias.get("dir") or 0
+        if not direction or (bias.get("conf") or 0) < 50 or (bias.get("agree") or 0) < 3:
+            return
+        blocked = self.why_not(ch, direction)
+        if blocked:
+            return
+        pick = self._pick(ch, direction, d.get("spot") or 0)
+        if pick:
+            self.entered(self.sb.buy(pick[0], pick[1], tag=f"{bias.get('label')} {bias.get('conf')}%"),
+                         f"trader {bias.get('label')} {bias.get('conf')}%, options keeping up, trend clean")
+
+
+BOTS = {b.name: b for b in (OrbNifty, VwapRevert, Momentum50, OiBehaviour)}
