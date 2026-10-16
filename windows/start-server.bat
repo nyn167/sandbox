@@ -2,6 +2,8 @@
 rem NYN paper-trading sandbox server, 24/7 (PAPER MONEY ONLY). Restarts on exit: crash, deploy, daily 08:55 refresh.
 cd /d "%~dp0.."
 chcp 65001 >nul
+rem logs go to a file, where Python would otherwise write cp1252 and fail on the rupee sign
+set PYTHONUTF8=1
 title NYN Sandbox server
 if not exist data\logs mkdir data\logs
 :loop

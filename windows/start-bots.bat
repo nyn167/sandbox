@@ -2,6 +2,8 @@
 rem NYN sandbox starter bots (PAPER MONEY ONLY). They idle outside market hours; restart on exit.
 cd /d "%~dp0.."
 chcp 65001 >nul
+rem logs go to a file, where Python would otherwise write cp1252 and fail on the rupee sign
+set PYTHONUTF8=1
 title NYN Sandbox bots
 if not exist data\logs mkdir data\logs
 :loop

@@ -14,6 +14,10 @@ import time
 from datetime import datetime
 
 import requests
+
+if hasattr(sys.stdout, "reconfigure"):      # UTF-8 logs (₹) even when Windows redirects output to a cp1252 file
+    for _s in (sys.stdout, sys.stderr):
+        _s.reconfigure(encoding="utf-8", errors="replace")
 from dotenv import dotenv_values
 
 from sandbox.bots.strategies import BOTS
