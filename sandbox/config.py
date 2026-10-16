@@ -21,12 +21,25 @@ def load_config(path: Path | None = None) -> dict:
     return yaml.safe_load(Path(path or ROOT / "config.yaml").read_text(encoding="utf-8"))
 
 
+def secrets_path() -> Path:
+    """The secrets file shared by every NYN app (the trader's Telegram bot keeps the daily Dhan tokens in it)."""
+    default = r"C:\nyn\secrets.env" if os.name == "nt" else "~/nyn/secrets.env"
+    return Path(os.getenv("NYN_SECRETS_FILE") or default).expanduser()
+
+
 def dhan_credentials(cfg: dict) -> tuple[str, str]:
-    """Client id + access token, re-read each call from the trader's .env (read-only, only these two keys)."""
-    env = dotenv_values(Path(cfg["market"]["dhan_env_file"]).expanduser())
-    cid, tok = (env.get("DHAN_CLIENT_ID") or "").strip(), (env.get("DHAN_ACCESS_TOKEN") or "").strip()
+    """Client id + access token (account 2 when configured), re-read each call, read-only, only these two keys:
+    from the shared secrets file when it exists, else from market.dhan_env_file (the trader's .env)."""
+    src = secrets_path()
+    if not src.is_file():
+        src = Path(cfg["market"]["dhan_env_file"]).expanduser()
+    env = dotenv_values(src)
+    # Dhan rate limits are per account: the sandbox uses account 2 (DHAN2_*) so it never competes with the live
+    # NIFTY trader on account 1. Account 1 only when no second account is configured at all.
+    slot = "DHAN2" if (env.get("DHAN2_CLIENT_ID") or "").strip() else "DHAN"
+    cid, tok = (env.get(f"{slot}_CLIENT_ID") or "").strip(), (env.get(f"{slot}_ACCESS_TOKEN") or "").strip()
     if not cid or not tok:
-        raise CredentialError("No Dhan credentials in " + cfg["market"]["dhan_env_file"] + TOKEN_HELP)
+        raise CredentialError(f"No Dhan credentials in {src}" + TOKEN_HELP)
     return cid, tok
 
 

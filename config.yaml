@@ -10,7 +10,7 @@ agents:                          # per bot / API agent (each has its own key and
   max_order_value: 25000         # ₹ premium / stock value per order
 
 market:
-  dhan_env_file: 'C:\trader\.env'  # read-only: only DHAN_CLIENT_ID + DHAN_ACCESS_TOKEN are read from it
+  dhan_env_file: 'C:\trader\.env'  # fallback when C:\nyn\secrets.env (NYN_SECRETS_FILE) is missing; read-only
   index_security_id: 13          # NIFTY 50
   symbol_prefix: "NIFTY-"
   option_expiries: 2             # nearest weekly expiries
