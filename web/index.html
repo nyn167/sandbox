@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>NYN Sandbox</title>
+<title>MAYAVYUH · NYN Securities</title>
 <style>
 :root {
   color-scheme: dark;
@@ -17,7 +17,7 @@ html, body { margin: 0; background: var(--bg); color: var(--t1);
 .num { font-variant-numeric: tabular-nums; }
 .up { color: var(--good); } .down { color: var(--bad); } .muted { color: var(--t3); }
 button { font: inherit; }
-.top { position: sticky; top: 0; z-index: 10; background: rgba(0,0,0,.9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+.top { position: sticky; top: 44px; z-index: 10; background: rgba(0,0,0,.9); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border); padding-top: env(safe-area-inset-top); }
 .bar { display: flex; align-items: center; gap: 14px; padding: 12px 24px; flex-wrap: wrap; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; letter-spacing: .6px; white-space: nowrap; }
@@ -90,8 +90,70 @@ select, input { background: #000; color: #fff; border: 1px solid var(--border); 
   .kpi .v { font-size: 22px; } .hide-sm { display: none; }
 }
 </style>
-</head>
-<body>
+<!--NYN:BEGIN--><style>
+/* NYN SECURITIES design layer: tokens from ARTHAVEDA-06 (public site) + a soft studio sheen. */
+:root {
+  --nyn-base: #090a0c; --nyn-surface: #0d0f12; --nyn-raise: #14171d; --nyn-line: #27272a; --nyn-dust: #3f3f46;
+  --nyn-dim: #71717a; --nyn-pencil: #a1a1aa; --nyn-bright: #f4f4f5; --nyn-white: #ffffff;
+  --nyn-sheen: linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.012) 38%, rgba(255,255,255,0) 60%);
+  --nyn-edge: inset 0 1px 0 rgba(255,255,255,.07), 0 1px 2px rgba(0,0,0,.6), 0 12px 32px -18px rgba(0,0,0,.9);
+  --nyn-metal: linear-gradient(180deg, #ffffff 0%, #e4e4e7 45%, #8e8e96 100%);
+  --nyn-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --nyn-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+}
+html { background: var(--nyn-base); }
+body.nyn::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(1100px 520px at 50% -180px, rgba(255,255,255,.075), rgba(255,255,255,0) 70%); }
+body.nyn {
+  background: transparent !important;
+  font-family: var(--nyn-font); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+.nyn-bar {
+  position: sticky; top: 0; z-index: 1000; height: 44px; display: flex; align-items: center; gap: 14px; padding: 0 16px;
+  background: rgba(9,10,12,.72); backdrop-filter: blur(18px) saturate(150%); -webkit-backdrop-filter: blur(18px) saturate(150%);
+  border-bottom: 1px solid rgba(255,255,255,.08); box-shadow: 0 1px 0 rgba(0,0,0,.6);
+  font-family: var(--nyn-font); color: var(--nyn-bright); box-sizing: border-box;
+}
+.nyn-bar a { color: inherit; text-decoration: none; }
+.nyn-brand { display: flex; align-items: center; gap: 9px; white-space: nowrap; }
+.nyn-brand svg { width: 26px; height: 26px; filter: drop-shadow(0 0 6px rgba(255,255,255,.18)); }
+.nyn-co { font-size: 10px; font-weight: 700; letter-spacing: .32em; color: var(--nyn-pencil); }
+.nyn-sep { width: 1px; height: 18px; background: rgba(255,255,255,.14); }
+.nyn-app { font-size: 15px; font-weight: 800; letter-spacing: .14em; background: var(--nyn-metal);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.nyn-code { font-family: var(--nyn-mono); font-size: 10px; color: var(--nyn-pencil); border: 1px solid rgba(255,255,255,.14);
+  border-radius: 999px; padding: 2px 8px; background: rgba(255,255,255,.04); }
+.nyn-tag { font-size: 11px; color: var(--nyn-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nyn-nav { margin-left: auto; display: flex; gap: 4px; }
+.nyn-nav a { font-size: 11px; font-weight: 600; letter-spacing: .08em; color: var(--nyn-pencil); padding: 5px 10px; border-radius: 999px; }
+.nyn-nav a:hover { color: var(--nyn-white); background: rgba(255,255,255,.07); }
+.nyn-nav a.on { color: var(--nyn-base); background: var(--nyn-metal); }
+@media (max-width: 720px) { .nyn-tag, .nyn-co, .nyn-sep:first-of-type { display: none; } .nyn-nav a:not(.home) { display: none; } }
+.nyn-panel { background-image: var(--nyn-sheen) !important; box-shadow: var(--nyn-edge) !important; }
+::selection { background: rgba(255,255,255,.22); }
+::-webkit-scrollbar { width: 8px; height: 8px; } ::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #27272a; border-radius: 999px; border: 2px solid var(--nyn-base); }
+::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+
+.card { background-image: var(--nyn-sheen); box-shadow: var(--nyn-edge); border-radius: 10px; }
+</style><!--NYN:END--></head>
+<body class="nyn"><!--NYN:BEGIN--><header class="nyn-bar"><a class="nyn-brand" href="https://nifty.tail2ddd4c.ts.net:8444/" title="NYN Securities"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NYN Securities">
+  <defs>
+    <linearGradient id="nynbMetal" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#d4d4d8"/><stop offset="1" stop-color="#71717a"/>
+    </linearGradient>
+    <radialGradient id="nynbIris" cx=".38" cy=".32" r=".8">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#a1a1aa"/><stop offset="1" stop-color="#18181b"/>
+    </radialGradient>
+  </defs>
+  <path d="M4 32 C16 12 48 12 60 32 C48 52 16 52 4 32 Z" fill="none" stroke="url(#nynbMetal)" stroke-width="3.2" stroke-linejoin="round"/>
+  <circle cx="32" cy="32" r="11.5" fill="url(#nynbIris)"/>
+  <circle cx="32" cy="32" r="11.5" fill="none" stroke="#f4f4f5" stroke-opacity=".55" stroke-width="1"/>
+  <circle cx="32" cy="32" r="4.6" fill="#090a0c"/>
+  <circle cx="28.4" cy="27.6" r="2.2" fill="#ffffff"/>
+  <path d="M20 32 H6 M58 32 H44" stroke="#f4f4f5" stroke-opacity=".35" stroke-width="1"/>
+</svg><span class="nyn-co">NYN SECURITIES</span></a><span class="nyn-sep"></span><span class="nyn-app">MAYAVYUH</span><span class="nyn-code">02</span><span class="nyn-tag">Strategy sandbox · paper trading and bots</span><nav class="nyn-nav"><a href="https://nifty.tail2ddd4c.ts.net:8444/" class=" home">KAALDRIK</a><a href="https://nifty.tail2ddd4c.ts.net/" class="">VAJRAKSH</a><a href="https://nifty.tail2ddd4c.ts.net:10000/" class="on">MAYAVYUH</a><a href="https://nifty.tail2ddd4c.ts.net:8443/" class="">MEDHASTRA</a></nav></header><!--NYN:END-->
 <div class="top">
   <div class="bar">
     <div class="brand"><span class="logo">S</span>NYN SANDBOX</div>
