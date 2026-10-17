@@ -45,16 +45,36 @@ class Engine:
             self.reg = build_mock(self.cfg)
             self.feed = MockMarket(self.reg, self.store, self.cfg)
         else:
+            import json
+            from .market.dhan_feed import DhanFeed, token_expired
             cid, tok = dhan_credentials(self.cfg)
             df = load_nifty_contracts(DATA / "cache", self.cfg["market"]["symbol_prefix"])
-            spot = self._rest_spot(cid, tok)
-            self.reg = build_live(self.cfg, df, spot)
-            self._seed_quotes(cid, tok)
-            import threading
-            threading.Thread(target=self._seed_prev_closes, args=(cid, tok), name="prev-close", daemon=True).start()
-            from .market.dhan_feed import DhanFeed
-            self.feed = DhanFeed(cid, tok, self.store)
-            self.feed.start(self.reg.feed_list())
+            last = DATA / "cache" / "last_spot.json"
+            if token_expired(tok):
+                # Dead token (e.g. a weekend): no Dhan call at all. Serve with the last known spot and the feed parked;
+                # run_loops restarts us once a fresh token is in the vault.
+                try:
+                    spot = float(json.loads(last.read_text(encoding="utf-8"))["spot"])
+                except (OSError, ValueError, KeyError):
+                    time.sleep(300)             # no cached spot yet: never retry Dhan faster than every 5 min
+                    raise
+                log.warning("Dhan token expired: serving with the last known spot %.2f, live feed parked until a "
+                            "fresh token is pasted", spot)
+                self.reg = build_live(self.cfg, df, spot)
+                self.feed = DhanFeed(cid, tok, self.store)
+                self.feed.fatal, self.feed.status = "access token expired", "stopped"
+            else:
+                spot = self._rest_spot(cid, tok)
+                try:
+                    last.write_text(json.dumps({"spot": spot, "at": time.time()}), encoding="utf-8")
+                except OSError:
+                    pass
+                self.reg = build_live(self.cfg, df, spot)
+                self._seed_quotes(cid, tok)
+                import threading
+                threading.Thread(target=self._seed_prev_closes, args=(cid, tok), name="prev-close", daemon=True).start()
+                self.feed = DhanFeed(cid, tok, self.store)
+                self.feed.start(self.reg.feed_list())
         self.broker = Broker(self.cfg, self.reg, self.store, self.db, mock=self.mock)
         log.info("Sandbox ready: %d instruments (%d options, %d stocks), %s", len(self.reg.by_symbol),
                  len(self.reg.options()), len(self.reg.stocks()), "MOCK" if self.mock else "live Dhan feed")
