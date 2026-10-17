@@ -26,6 +26,20 @@ from dhanhq.marketfeed import MarketFeed
 # made us drop a healthy feed every ~55 s. Keepalive pings are off; a data watchdog (STALL_S) catches dead links.
 _dhan_marketfeed.websockets.connect = functools.partial(websockets.connect, ping_interval=None, max_size=None)
 STALL_S = 120          # no packet at all for this long while connected → reconnect
+STABLE_S = 60          # backoff resets only after a connection has lived this long (a dead token connects, then drops)
+RATE_LIMIT_WAIT_S = 120  # after an HTTP 429 from Dhan, wait at least this long (the account's limits are shared)
+
+
+def token_expired(token: str) -> bool:
+    """Offline check of the JWT 'exp' claim: an expired token is never sent to Dhan."""
+    import base64, json, time as _t
+    try:
+        part = token.split(".")[1]
+        part += "=" * (-len(part) % 4)
+        exp = json.loads(base64.urlsafe_b64decode(part)).get("exp")
+    except Exception:
+        return False
+    return bool(exp) and _t.time() >= exp
 
 from ..config import TOKEN_HELP
 from .packets import DISCONNECT_REASONS, FATAL_CODES, parse_into
@@ -117,14 +131,20 @@ class DhanFeed:
         delay = 1.0
         while self._running:
             store.disconnect_code = None
+            if token_expired(self._token):
+                self.fatal = "access token expired"
+                self.status = "stopped"
+                log.error("Dhan feed: access token expired - not connecting until a fresh one is pasted.%s", TOKEN_HELP)
+                break
+            connected_at = None
             try:
                 self.status = "connecting"
                 feed.ws = None
                 await feed.connect()            # opens socket + subscribes feed.instruments
                 self.status = "live"
+                connected_at = asyncio.get_running_loop().time()
                 log.info("Dhan feed connected, %d instruments subscribed (index: Ticker, F&O: FULL)",
                          len(feed.instruments))
-                delay = 1.0
                 ws = feed.ws
                 while self._running:
                     try:
@@ -141,6 +161,8 @@ class DhanFeed:
             except websockets.InvalidStatus as e:
                 code = e.response.status_code
                 log.error("Dhan feed handshake rejected: HTTP %s", code)
+                if code == 429:
+                    delay = max(delay, RATE_LIMIT_WAIT_S)
                 if code in (401, 403):
                     self.fatal = f"HTTP {code} on connect — access token invalid or expired."
             except Exception as e:  # network down, DNS, etc.
@@ -158,8 +180,10 @@ class DhanFeed:
                 break
             if not self._running:
                 break
+            if connected_at is not None and asyncio.get_running_loop().time() - connected_at >= STABLE_S:
+                delay = 1.0                         # it was a healthy link that dropped: reconnect quickly
             self.status = f"reconnect in {delay:.0f}s"
             self.reconnects += 1
             await asyncio.sleep(delay)
-            delay = min(delay * 2, self.backoff_max)
+            delay = min(delay * 2, max(self.backoff_max, RATE_LIMIT_WAIT_S * 5))
         self.status = "stopped"

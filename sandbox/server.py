@@ -126,6 +126,20 @@ class Engine:
             self.store.prev.setdefault(int(sid), (float(pc), 0))
         log.info("Previous closes ready for %d stocks", len(got))
 
+    def _new_token(self) -> bool:
+        """True once the vault holds a different, unexpired token (checked at most every 30 s). Until then the
+        server keeps serving with the feed parked, instead of restarting and hammering Dhan with a dead token."""
+        now = time.time()
+        if now - getattr(self, "_tok_checked", 0) < 30:
+            return False
+        self._tok_checked = now
+        try:
+            from .market.dhan_feed import token_expired
+            _cid, tok = dhan_credentials(self.cfg)
+        except Exception:
+            return False
+        return tok != getattr(self.feed, "_token", None) and not token_expired(tok)
+
     # ---- loops
     async def run_loops(self) -> None:
         nxt_eq = 0.0
@@ -135,8 +149,8 @@ class Engine:
                 if now.weekday() < 5 and now.strftime("%H:%M") == "08:55" and time.time() - self.started > 600:
                     log.info("Daily restart: fresh token, expiries and strikes for today's session")
                     raise SystemExit(0)
-                if getattr(self.feed, "fatal", None) and time.time() - self.started > 120:
-                    log.warning("Feed stopped (%s) — restarting in a minute to pick up a new token", self.feed.fatal)
+                if getattr(self.feed, "fatal", None) and time.time() - self.started > 120 and self._new_token():
+                    log.warning("Feed stopped (%s) and a new token is in the vault - restarting to use it", self.feed.fatal)
                     raise SystemExit(3)
             if self.mock:
                 self.feed.step()
